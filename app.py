@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request
 import re
+import sqlite3
 
 app = Flask(__name__)
 
@@ -22,6 +23,21 @@ def detect_sqli(user_input):
             return True
     
     return False
+
+def log_attack_to_db(attack_type, payload, endpoint):
+    try:
+        conn = sqlite3.connect('security_logs.db')
+        cursor = conn.cursor
+        cursor.execute('''
+            INSERT INTO attack_logs (attack_type, payload, vulnerable_endpoint)
+            VALUES (?, ?, ?)
+        ''', (attack_type, payload, endpoint))
+                
+        conn.commit()
+        conn.close()
+        print(f"[DB LOG] Successfully logged {attack_type} attack to database.")
+    except Exception as e:
+        print(f"[ERROR] Failed to write to log database: {e}")
 
 @app.route('/')
 def home():
