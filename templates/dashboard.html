@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Security Operations Center (SOC) Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f6f9; }
+        h1 { color: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #e74c3c; color: white; } /* Red header for security alerts */
+        tr:hover { background-color: #f5f5f5; }
+        .badge { background-color: #f39c12; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>SOC Incident Logs</h1>
+    <p>Real-time intrusion detection logs captured by your Python WAF.</p>
+    <a href="/">Go to Home</a> | <a href="/login">Go to Login</a>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Timestamp (UTC)</th>
+                <th>Attack Type</th>
+                <th>Malicious Payload</th>
+                <th>Target Endpoint</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log[0] }}</td> <td>{{ log[1] }}</td> <td><span class="badge">{{ log[2] }}</span></td> <td style="font-family: monospace; color: #c0392b;">{{ log[3] }}</td> <td>{{ log[4] }}</td> </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>
