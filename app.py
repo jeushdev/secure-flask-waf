@@ -1,9 +1,14 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session, redirect
 import re
 import sqlite3
 import os
 
 app = Flask(__name__)
+
+app.secret_key = 'super_secret_admin_key_change_this_later'
+
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "Password123!"
 
 def detect_sqli(user_input):
     if not user_input:
@@ -100,12 +105,21 @@ def login():
             log_attack_to_db(attack_type="Cross-Site Scripting (XSS)", payload=password, endpoint="/login")
             return "<h2>Access Denied: Malicious Activity Detected.</h2>", 403
 
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session['logged_in'] = True # Give them the session "wristband"!
+            print("[AUTH SUCCESS] Administrator logged in. Session granted.")
+            return redirect('/dashboard') # Automatically jump straight to the SOC dashboard
+
         print(f"DEBUG: Login attempt with Username: {username}")
         return f"<h3>Attempted login for user: {username}. Backend received data!</h3>"
     return render_template('login.html')
 
 @app.route('/dashboard')
 def dashboard():
+    if not session.get('logged_in'):
+        print("[UNAUTHORIZED ACCESS] Attempt to access dashboard without active session!")
+        return "<h2>Access Denied: Unauthorized. You must log in as Administrator first.</h2>", 401
+    
     base_dir = os.path.dirname(os.path.abspath(__file__))
     db_path = os.path.join(base_dir, 'security_logs.db')
     
@@ -120,6 +134,12 @@ def dashboard():
     
     conn.close()
     return render_template('dashboard.html', logs=all_logs)
+
+@app.route('/logout')
+def logout():
+    session.clear() # Throw away the wristband
+    print("[AUTH] Administrator logged out.")
+    return redirect('/')
 
 if __name__ == '__main__':
     app.run(debug=True)
