@@ -14,45 +14,26 @@ def detect_sqli(user_input):
     if not user_input:
         return False
     
-    lowercased_input = user_input.lower()
-
-    sql_signatures = [
-        "'",
-        "--",
-        "or 1=1",
-        "union select"
-    ]
-
-    for signature in sql_signatures:
-        if signature in lowercased_input:
-            print(f"[ALERT] Security Violation! Detected SQLi Signature: '{signature}' in input: '{user_input}'")
-            return True
+    # This regex pattern looks for a single quote followed by common SQL words (OR, AND, UNION, SELECT)
+    # OR any pattern where something equals itself (like 1=1, 'a'='a', 2=2)
+    sqli_pattern = r"('|\b)(or|and)\b\s+\d+=\d+|'|--|\bunion\b|\bselect\b"
     
+    # re.search scans the string for the pattern. flags=re.IGNORECASE makes it case-insensitive
+    if re.search(sqli_pattern, user_input, re.IGNORECASE):
+        print(f"[REGEX ALERT] SQL Injection pattern matched in input: '{user_input}'")
+        return True
     return False
 
 def detect_xss(user_input):
     if not user_input:
         return False
     
-    lowercased_input = user_input.lower()
-
-    xss_signatures = [
-        "<script>",
-        "</script>",
-        "javascript:",
-        "onerror=",
-        "onload="
-    ]
-
-    for signature in xss_signatures:
-        if signature in lowercased_input:
-            print(f"[ALERT] Security Violation! Detected XSS Signature: '{signature}'")
-            return True
+    # This pattern catches <script> tags, HTML brackets containing keywords, or event handlers like onerror/onload
+    xss_pattern = r"<script.*?>|<\/script>|javascript:|onerror=|onload=|html|<body>|<iframe"
     
-    if "<" in lowercased_input and ">" in lowercased_input:
-        print(f"[ALERT] Security Violation! Detected HTML Tag Injection symbols '< >'")
+    if re.search(xss_pattern, user_input, re.IGNORECASE):
+        print(f"[REGEX ALERT] XSS pattern matched in input: '{user_input}'")
         return True
-        
     return False
 
 def log_attack_to_db(attack_type, payload, endpoint):
