@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, session, redirect
 import re
 import sqlite3
 import os
+import time
 
 app = Flask(__name__)
 
@@ -9,6 +10,8 @@ app.secret_key = 'super_secret_admin_key_change_this_later'
 
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "Password123!"
+
+login_attempts = {}
 
 def detect_sqli(user_input):
     if not user_input:
@@ -66,6 +69,17 @@ def home():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    user_ip = request.remote_addr
+    current_time = time.time()
+
+    if user_ip in login_attempts:
+        ip_data = login_attempts[user_ip]
+
+        if current_time < ip_data["lockout_until"]:
+            time_left = int(ip_data["lockout_until"] - current_time)
+            print(f"[RATE LIMIT] Blocked request from {user_ip}. Lockout active for {time_left}s.")
+            return f"<h2>Access Denied: Too many failed login attempts. Try again in {time_left} seconds.</h2>", 429 # 429 is HTTP for Too Many Requests
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -87,12 +101,27 @@ def login():
             return "<h2>Access Denied: Malicious Activity Detected.</h2>", 403
 
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            if user_ip in login_attempts:
+                del login_attempts[user_ip]
             session['logged_in'] = True # Give them the session "wristband"!
             print("[AUTH SUCCESS] Administrator logged in. Session granted.")
-            return redirect('/dashboard') # Automatically jump straight to the SOC dashboard
-
-        print(f"DEBUG: Login attempt with Username: {username}")
-        return f"<h3>Attempted login for user: {username}. Backend received data!</h3>"
+            return redirect('/dashboard') 
+        
+        print(f"[AUTH FAILURE] Invalid credentials submitted from IP: {user_ip}")
+        
+        if user_ip not in login_attempts:
+            login_attempts[user_ip] = {"count": 1, "lockout_until": 0}
+        else:
+            login_attempts[user_ip]["count"] += 1
+        
+        if login_attempts[user_ip]["count"] >= 3:
+            login_attempts[user_ip]["lockout_until"] = current_time + 30 # 30-second penalty time window
+            login_attempts[user_ip]["count"] = 0 # Reset counter container
+            log_attack_to_db(attack_type="Brute Force Attempt", payload=f"IP Locked out: {user_ip}", endpoint="/login")
+            
+            return "<h2>Access Denied: Too many failed attempts. You are locked out for 30 seconds.</h2>", 429
+        
+        return "<h3>Invalid Username or Password.</h3>", 401
     return render_template('login.html')
 
 @app.route('/dashboard')
