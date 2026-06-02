@@ -25,6 +25,31 @@ def detect_sqli(user_input):
     
     return False
 
+def detect_xss(user_input):
+    if not user_input:
+        return False
+    
+    lowercased_input = user_input.lower()
+
+    xss_signatures = [
+        "<script>",
+        "</script>",
+        "javascript:",
+        "onerror=",
+        "onload="
+    ]
+
+    for signature in xss_signatures:
+        if signature in lowercased_input:
+            print(f"[ALERT] Security Violation! Detected XSS Signature: '{signature}'")
+            return True
+    
+    if "<" in lowercased_input and ">" in lowercased_input:
+        print(f"[ALERT] Security Violation! Detected HTML Tag Injection symbols '< >'")
+        return True
+        
+    return False
+
 def log_attack_to_db(attack_type, payload, endpoint):
     conn = None
     try:
@@ -65,6 +90,14 @@ def login():
             
         if detect_sqli(password):
             log_attack_to_db(attack_type="SQL Injection", payload=password, endpoint="/login")
+            return "<h2>Access Denied: Malicious Activity Detected.</h2>", 403
+        
+        if detect_xss(username):
+            log_attack_to_db(attack_type="Cross-Site Scripting (XSS)", payload=username, endpoint="/login")
+            return "<h2>Access Denied: Malicious Activity Detected.</h2>", 403
+
+        if detect_xss(password):
+            log_attack_to_db(attack_type="Cross-Site Scripting (XSS)", payload=password, endpoint="/login")
             return "<h2>Access Denied: Malicious Activity Detected.</h2>", 403
 
         print(f"DEBUG: Login attempt with Username: {username}")
